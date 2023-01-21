@@ -1,0 +1,80 @@
+!======================================
+!-------- Autor: Hilda Beltrán --------
+!-------- Autor: Karen Cebreros -------
+!-------- Autor: Aranza Leal ----------
+!======================================
+!======================================
+! Configuración del switch S-EmpSalt
+!======================================
+
+! Cambiar al modo privilegiado
+enable
+
+! Establecer hora y fecha
+clock set 23:59:00 Nov 2 2022
+
+! Configuración global del equipo
+configure terminal
+
+Banner motd # Estás entrando al equipo
+
+S-EmpSalt, si decides entrar estarías
+
+cometiendo un delito. #
+
+! Nombrar el equipo
+hostname S-EmpSalt
+
+! Deshabilitar el DNS
+no ip domain-lookup
+
+! Encriptar hostname y DNS
+ip domain-name sysadmin
+crypto key generate rsa
+
+! Se usan 1024 bits
+yes
+1024
+
+! Usuario y password para ssh
+username  CEO  privilege  15  secret  tc2036
+username  CIT  privilege  15  secret  tc2036
+
+! Protección de la línea de la consola
+line console 0
+  password cisco
+  login
+  logging sync
+
+! Protección para el acceso remoto
+line vty 0 15
+  transport input ssh
+  login local
+
+! Creacion de las VLANs
+vlan 4
+name ServiciosCProdSalt
+vlan 14
+name EmpleadosCProdSalt
+vlan 24
+name SenAmbientalesSalt
+vlan 34
+name SenSueloSalt
+vlan 444
+name Admin
+
+int range F0/1-24, G0/2
+  switchport mode access
+  switchport access vlan 14
+
+int G0/1
+  switchport mode trunk
+  no shut
+
+! Asignación de IP a la VLAN 444 (SVI)
+interface vlan 444
+ip address 172.16.7.44  255.255.255.240
+  description Dirección IP para gestionar el equipo S-EmpSalt
+  no shutdown
+
+ip default-gateway 172.16.7.54

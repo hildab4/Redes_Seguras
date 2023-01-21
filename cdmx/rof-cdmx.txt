@@ -1,0 +1,138 @@
+!======================================
+!-------- Autor: Hilda Beltrán --------
+!-------- Autor: Karen Cebreros -------
+!-------- Autor: Aranza Leal ----------
+!======================================
+
+!======================================
+! Configuración del router ROF-Cdmx
+!======================================
+
+! Cambiar al modo privilegiado
+enable
+
+! Establecer hora y fecha
+clock set 23:59:00 Nov 2 2022
+
+! Configuración global del equipo
+configure terminal
+
+Banner motd # Estás entrando al equipo
+
+ROF-Cdmx, si decides entrar estarías
+
+cometiendo un delito. #
+
+! Nombrar el equipo
+hostname ROF-Cdmx
+
+! Deshabilitar el DNS
+no ip domain-lookup
+
+! Encriptar hostname y DNS
+ip domain-name ofcdmx.com
+crypto key generate rsa
+
+! Se usan 1024 bits
+! 1024
+
+! Establecer el modo de seguridad
+! Cambiar al modo privilegiado
+enable secret class
+
+! Usuario y password para ssh
+username  CEO  privilege  15  secret  tc2036
+username  CIT  privilege  15  secret  tc2036
+
+! Protección de la línea de la consola
+line console 0
+  password tc2036
+  login local
+  logging sync
+
+! Protección para el acceso remoto
+line vty 0 4
+  transport input ssh
+  logging sync
+
+! Definicion de subinterfaces en int G0/0/0
+interface G0/0/0.4
+  description Interfaz para la red de Servidores
+  encapsulation dot1Q 4
+  ip address 172.16.0.134  255.255.255.248
+  ip nat inside
+
+interface G0/0/0.14
+  description Interfaz para la red de Empleados
+  encapsulation dot1Q 14
+  ip address 172.16.0.126  255.255.255.128
+  ip nat inside
+
+interface G0/0/0.1
+  description Interfaz de la VLAN de gestion
+  encapsulation dot1Q 1
+  ip address 172.16.1.254  255.255.255.240
+  ip nat inside
+
+interface G0/0/0
+  no shutdown
+
+interface s0/2/0
+  description Interfaz con el ISP-INTERNET
+  ip address 152.78.212.18  255.255.255.252
+  ip nat outside
+  no shutdown
+
+! Declaracion del Pool para el DHCP de Empleados
+ip dhcp excluded-address  172.16.0.126
+ip dhcp pool Empleados
+  network  172.16.0.0  255.255.255.128
+  default-router  172.16.0.126
+  dns-server  8.8.8.8
+
+! NAT estatico, equipos visibles desde Internet
+ip nat inside source static 172.16.0.129 152.78.211.255
+ip nat inside source static 172.16.0.130 152.78.211.254
+ip nat inside source static 172.16.0.131 152.78.211.253
+
+! Pool para NAT dinamico con sobrecarga (PAT)
+ip nat pool OF-CDMX 152.78.211.0 152.78.211.252 netmask 255.255.255.0
+
+! Quien puede acceder al NAT dinamico
+access-list 1 permit 172.16.0.0 0.0.0.127
+
+! Asociar Pool con lista de permisos
+ip nat inside source list 1 pool OF-CDMX overload
+
+! Lista de control de acceso extendida
+! Router: ROF-CDMX
+! YA SIRVE
+ip access-list extended ServerViaWeb
+
+  remark Solo se puede acceder a los servidores de CDMX via web
+  permit tcp any host 172.16.0.129  eq 80
+  permit tcp any host 172.16.0.130  eq 80
+  permit tcp any host 172.16.0.131  eq 80
+
+int  G0/0/0.4
+ip access-group ServerViaWeb  out
+
+! Desactivar lista anterior
+! no ip access-group ServerViaWeb  out
+
+! Ruta estática por default
+ip route 0.0.0.0  0.0.0.0  s0/2/0
+
+! Establecer el protocolo de routeo entre los vecinos directamente conectados
+! En el modo de configuración de la terminal debemos definir el protocolo y un ID
+router ospf 2022
+! Agregar las redes/subredes directamente conectadas que se desean anunciar
+network  172.16.0.128  0.0.0.7  area 0
+network  172.16.0.0  0.0.0.127  area 0
+
+! Configurar interfaces del router que NO interconectan más routers como pasivas
+  passive-interface  G0/0/0
+  passive-interface  S0/2/0
+
+! Propagar la ruta por default que solo el Router Frontera define
+default-information  originate

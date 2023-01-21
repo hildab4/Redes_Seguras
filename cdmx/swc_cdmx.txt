@@ -1,0 +1,71 @@
+!======================================
+!-------- Autor: Hilda Beltrán --------
+!-------- Autor: Karen Cebreros -------
+!-------- Autor: Aranza Leal ----------
+!======================================
+!======================================
+! Configuración del switch SWC-Cdmx
+!======================================
+
+! Cambiar al modo privilegiado
+enable
+
+! Establecer hora y fecha
+clock set 23:59:00 Nov 2 2022
+
+! Configuración global del equipo
+configure terminal
+
+Banner motd # Estás entrando al equipo
+
+SWC-Cdmx, si decides entrar estarías
+
+cometiendo un delito. #
+
+! Nombrar el equipo
+hostname SWC-Cdmx
+
+! Deshabilitar el DNS
+no ip domain-lookup
+
+! Encriptar hostname y DNS
+ip domain-name of1cdmx.com
+crypto key generate rsa
+
+! Se usan 1024 bits
+! 1024
+
+! Usuario y password para ssh
+username  CEO  privilege  15  secret  tc2036
+username  CIT  privilege  15  secret  tc2036
+
+! Protección de la línea de la consola
+line console 0
+  password tc2036
+  login local
+  logging sync
+
+! Protección para el acceso remoto
+line vty 0 15
+  transport input ssh
+  login local
+
+! Creacion de la BD de las VLANs
+vlan 4
+name ServersCDMx
+vlan 14
+name EmpleadosCDMx
+vlan 1
+name Admin
+
+int range G0/1-2, F0/2
+  switchport mode trunk
+  no shut
+
+! Configuracion de la VLAN Admin
+interface vlan 1
+  description Interfaz de gestion y de acceso remoto
+  ip address 172.16.1.253  255.255.255.240
+  no shutdown
+
+ip default-gateway 172.16.1.254

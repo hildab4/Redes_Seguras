@@ -1,0 +1,130 @@
+!======================================
+!-------- Autor: Hilda Beltrán --------
+!-------- Autor: Karen Cebreros -------
+!-------- Autor: Aranza Leal ----------
+!======================================
+
+!======================================
+! Configuración del router RCP-Gdl
+!======================================
+
+! Cambiar al modo privilegiado
+enable
+
+! Establecer hora y fecha
+clock set 23:59:00 Nov 2 2022
+
+! Configuración global del equipo
+configure terminal
+
+Banner motd # Estás entrando al equipo
+
+RCP-Gdl, si decides entrar estarías
+
+cometiendo un delito. #
+
+! Nombrar el equipo
+hostname RCP-Gdl
+
+! Deshabilitar el DNS
+no ip domain-lookup
+
+! Encriptar hostname y DNS
+ip domain-name cpgdl.com
+crypto key generate rsa
+
+! Se usan 1024 bits
+yes
+1024
+
+! Establecer el modo de seguridad
+! Cambiar al modo privilegiado
+enable secret class
+
+! Usuario y password para ssh
+username  CEO  privilege  15  secret  tc2036
+username  CIT  privilege  15  secret  tc2036
+
+! Protección de la línea de la consola
+line console 0
+  password cisco
+  login
+  logging sync
+
+! Protección para el acceso remoto
+line vty 0 4
+  transport input ssh
+  logging sync
+
+! Definicion de subinterfaces en int G0/0/0
+interface G0/0/0.4
+  description Interfaz para la red de Servicios
+  encapsulation dot1Q 4
+  ip address 172.16.9.14  255.255.255.240
+  ip nat inside
+
+interface G0/0/0.14
+  description Interfaz para la red de Empleados
+  encapsulation dot1Q 14
+  ip address 172.16.8.254  255.255.255.224
+  ip nat inside
+
+interface G0/0/0.24
+  description Interfaz para la red de Empleados
+  encapsulation dot1Q 24
+  ip address 172.16.8.222  255.255.255.224
+  ip nat inside
+
+interface G0/0/0.34
+  description Interfaz para la red de Empleados
+  encapsulation dot1Q 34
+  ip address 172.16.8.126  255.255.255.128
+  ip nat inside
+
+interface G0/0/0.444
+  description Interfaz de la VLAN de gestion
+  encapsulation dot1Q 444
+  ip address 172.16.9.54  255.255.255.240
+  ip nat inside
+
+interface G0/0/0
+  no shutdown
+
+interface s0/2/0
+  description Interfaz con el ROF-Gdl
+  ip address 172.16.9.254  255.255.255.252
+  no shutdown
+
+! Pool DHCP para Empleados
+ip dhcp excluded-address 172.16.8.254
+ip dhcp pool Empleados
+  network 172.16.8.224 255.255.255.224
+  default-router 172.16.8.254
+  dns-server 8.8.8.8
+
+! ACL
+ip access-list extended ServerViaFTP
+
+ remark Acceso a Servidores solo via FTP
+ permit  tcp any host 172.16.9.1 eq 20
+ permit  tcp any host 172.16.9.1 eq 21
+
+int  G0/0/0.4
+ip access-group ServerViaFTP out
+
+! Borrar lista
+! no ip access-group ServerViaFTP out
+
+! Establecer el protocolo de routeo entre los vecinos directamente conectados
+! En el modo de configuración de la terminal debemos definir el protocolo y un ID
+router ospf 2022
+! Agregar las redes/subredes directamente conectadas que se desean anunciar
+network  172.16.9.252   0.0.0.3   area 0
+network  172.16.9.0     0.0.0.15  area 0
+network  172.16.9.16   0.0.0.15   area 0
+network  172.16.8.192   0.0.0.31  area 0
+network  172.16.8.224   0.0.0.31  area 0
+network  172.16.8.0     0.0.0.127  area 0
+
+! Configurar interfaces del router que NO interconectan más routers como pasivas
+  passive-interface  G0/0/0
